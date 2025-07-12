@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TF Image Compressor & Resizer</title>
+  <style>
+    /* Styles same as previous, plus footer style */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #212529;
+    }
+    .app-container {
+      background: #fff;
+      width: 100%;
+      max-width: 450px;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 {
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      color: #0d6efd;
+    }
+    .dropzone {
+      border: 2px dashed #6c757d;
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      color: #6c757d;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      user-select: none;
+    }
+    .dropzone.dragover {
+      background-color: #e9f0ff;
+      border-color: #0d6efd;
+      color: #0d6efd;
+    }
+    .file-info {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      color: #495057;
+      text-align: center;
+      word-break: break-word;
+    }
+    label {
+      display: block;
+      margin-top: 1.5rem;
+      margin-bottom: 0.25rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #212529;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      transition: border-color 0.3s ease;
+    }
+    input[type="number"]:focus {
+      outline: none;
+      border-color: #0d6efd;
+      box-shadow: 0 0 5px rgba(13, 110, 253, 0.5);
+    }
+    button {
+      margin-top: 1.75rem;
+      width: 100%;
+      padding: 0.65rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      background-color: #0d6efd;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:disabled {
+      background-color: #6c757d;
+      cursor: not-allowed;
+    }
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #0d6efd;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    .result {
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+    .result img {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    .result p {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #495057;
+    }
+    .download-link {
+      display: inline-block;
+      margin-top: 0.75rem;
+      padding: 0.5rem 1rem;
+      background-color: #0d6efd;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+    .download-link:hover {
+      background-color: #084fc1;
+    }
+    #previewOriginal {
+      margin-top: 1rem;
+      text-align: center;
+    }
+    #previewOriginal img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    footer {
+      width: 100%;
+      padding: 1rem 0;
+      text-align: center;
+      background: #0d6efd;
+      color: white;
+      font-size: 0.9rem;
+      font-weight: 600;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <h1>TF Image Compressor & Resizer</h1>
+
+    <div id="dropzone" class="dropzone">
+      Drag & drop an image here or click to select
+      <input type="file" id="imageInput" accept="image/*" style="display:none" />
+    </div>
+
+    <div id="fileInfo" class="file-info"></div>
+    <div id="previewOriginal"></div>
+
+    <label for="targetSize">Target size in KB:</label>
+    <input type="number" id="targetSize" min="10" placeholder="e.g. 100" />
+
+    <button id="compressBtn" disabled>Process Image</button>
+
+    <div id="loading" style="display:none; text-align:center; margin-top:1rem;">
+      Processing...
+      <span class="loader"></span>
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <footer>
+    Crafted with care, designed with passion, developed with expertise by Techily Fly & Ibn Ghufran.
+  </footer>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const imageInput = document.getElementById('imageInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const previewOriginal = document.getElementById('previewOriginal');
+    const targetSizeInput = document.getElementById('targetSize');
+    const compressBtn = document.getElementById('compressBtn');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+
+    let selectedFile = null;
+    let originalFileSize = 0;
+    let originalImage = null;
+    let originalWidth = 0;
+    let originalHeight = 0;
+
+    function updateFileInfo(file) {
+      originalFileSize = file.size;
+      const sizeKB = (file.size / 1024).toFixed(2);
+      fileInfo.textContent = `Selected file: ${file.name} (${sizeKB} KB)`;
+    }
+
+    function showPreview(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewOriginal.innerHTML = `<img src="${e.target.result}" alt="Selected Image Preview" />`;
+        originalImage = new Image();
+        originalImage.src = e.target.result;
+        originalImage.onload = () => {
+          originalWidth = originalImage.width;
+          originalHeight = originalImage.height;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    dropzone.addEventListener('click', () => imageInput.click());
+
+    imageInput.addEventListener('change', (e) => {
+      if (e.target.files.length === 0) return;
+      selectedFile = e.target.files[0];
+      updateFileInfo(selectedFile);
+      showPreview(selectedFile);
+      compressBtn.disabled = false;
+      result.innerHTML = '';
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length === 0) return;
+      selectedFile = e.dataTransfer.files[0];
+      updateFileInfo(selectedFile);
+      showPreview(selectedFile);
+      compressBtn.disabled = false;
+      result.innerHTML = '';
+    });
+
+    // Compression & Resize logic
+
+    function compressResize(canvas, targetBytes, maxIterations, callback) {
+      let lowQuality = 0.05;
+      let highQuality = 0.95;
+      let quality = 0.95;
+
+      let lowScale = 0.1;  // minimum 10% scale down
+      let highScale = 3;   // maximum 3x scale up
+      let scale = 1;
+
+      let iteration = 0;
+      const lowerLimit = targetBytes * 0.9; // -10% tolerance
+
+      function tryCompress() {
+        canvas.toBlob(blob => {
+          if (!blob) {
+            callback(new Error("Compression failed"));
+            return;
+          }
+          const size = blob.size;
+          if ((size >= lowerLimit && size <= targetBytes) || iteration >= maxIterations) {
+            callback(null, blob);
+            return;
+          }
+
+          // Decide if we need to compress (reduce quality) or increase size (upscale + quality)
+          if (size > targetBytes) {
+            // Too big, reduce quality and possibly scale down
+            if (quality > lowQuality) {
+              highQuality = quality;
+              quality = (lowQuality + quality) / 2;
+            } else if (scale > lowScale) {
+              highQuality = quality; // keep quality low
+              scale = (lowScale + scale) / 2;
+              resizeCanvas(scale);
+            } else {
+              // can't reduce more
+              callback(null, blob);
+              return;
+            }
+          } else {
+            // Too small, increase quality or scale up
+            if (quality < highQuality) {
+              lowQuality = quality;
+              quality = (quality + highQuality) / 2;
+            } else if (scale < highScale) {
+              lowQuality = quality; // keep quality high
+              scale = (scale + highScale) / 2;
+              resizeCanvas(scale);
+            } else {
+              callback(null, blob);
+              return;
+            }
+          }
+          iteration++;
+          tryCompress();
+        }, 'image/jpeg', quality);
+      }
+
+      function resizeCanvas(scaleFactor) {
+        canvas.width = originalWidth * scaleFactor;
+        canvas.height = originalHeight * scaleFactor;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+      }
+
+      tryCompress();
+    }
+
+    compressBtn.addEventListener('click', () => {
+      if (!selectedFile || !originalImage) return;
+
+      const targetSizeKB = parseInt(targetSizeInput.value);
+      if (!targetSizeKB || targetSizeKB < 10) {
+        alert('Please enter a valid target size in KB (minimum 10 KB).');
+        return;
+      }
+
+      compressBtn.disabled = true;
+      loading.style.display = 'block';
+      result.innerHTML = '';
+
+      const targetSizeBytes = targetSizeKB * 1024;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = originalWidth;
+      canvas.height = originalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(originalImage, 0, 0);
+
+      compressResize(canvas, targetSizeBytes, 20, (err, blob) => {
+        loading.style.display = 'none';
+        compressBtn.disabled = false;
+        if (err) {
+          alert(err.message);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        result.innerHTML = `
+          <img src="${url}" alt="Processed Image" />
+          <p>Final size: ${(blob.size / 1024).toFixed(2)} KB</p>
+          <a href="${url}" download="processed-image.jpg" class="download-link">Download</a>
+        `;
+      });
+    });
+  </script>
+</body>
+</html>
